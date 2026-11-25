@@ -152,6 +152,11 @@ button,.button{font-weight:600;letter-spacing:.05px}
 .category-custom-color{width:29px;height:29px;padding:2px;border:1px solid #ccd3dc;border-radius:8px;background:#fff;cursor:pointer}
 .category-color-caption{font-size:10px;color:var(--muted);width:100%;margin-top:2px}
 
+
+.day-dots{display:flex;gap:3px;align-items:center;justify-content:center;flex-wrap:wrap;margin:5px auto 0;max-width:90%}
+.day-dots .day-dot{display:inline-block;width:7px;height:7px;border-radius:50%;border:1px solid #ffffff;box-shadow:0 0 0 1px #8795a555}
+.day-cell.selected .day-dots .day-dot{box-shadow:0 0 0 1px #24466b88}
+
 </style>
 </head>
 <body>
@@ -538,14 +543,15 @@ function renderCalendar(){
   const d=new Date(start);d.setDate(start.getDate()+i);const key=isoDate(d);
   const dayRecords=records.filter(r=>r.date===key);
   const cls=["day-cell",d.getMonth()!==m?"outside":"",key===today?"today":"",key===selectedCalendarDate?"selected":""].filter(Boolean).join(" ");
-  out+=`<button class="${cls}" data-day="${key}"><span class="day-num">${d.getDate()}</span>${dayRecords.length?`<br><span class="day-dot" title="${dayRecords.length} actividad(es)"></span>`:""}</button>`;
+  const dayCats=[...new Set(dayRecords.map(r=>r.category))];
+  out+=`<button class="${cls}" data-day="${key}"><span class="day-num">${d.getDate()}</span>${dayCats.length?`<span class="day-dots" title="${dayRecords.length} actividad(es)">${dayCats.slice(0,5).map(cat=>`<i class="day-dot" style="background:${categoryColor(cat)}" title="${esc(cat)}"></i>`).join("")}${dayCats.length>5?`<small>+${dayCats.length-5}</small>`:""}</span>`:""}</button>`;
  }
  $("calendarGrid").innerHTML=out;
  $("calMonthTotal").textContent=records.filter(r=>r.date.startsWith(`${y}-${String(m+1).padStart(2,"0")}`)).length;
  $("calCategoryTotal").textContent=categories.length;
  const dayRecs=records.filter(r=>r.date===selectedCalendarDate);$("calDayTotal").textContent=dayRecs.length;
  $("selectedDateTitle").textContent=fmtDate(selectedCalendarDate);
- $("selectedDayList").innerHTML=dayRecs.map(r=>`<div style="padding:7px 0;border-bottom:1px solid #edf0f4"><b>${esc(r.category)}</b><br>${esc(r.description.slice(0,85))}${r.description.length>85?"…":""}</div>`).join("")||"Sin actividades registradas para este día.";
+ $("selectedDayList").innerHTML=dayRecs.map(r=>`<div style="padding:7px 0;border-bottom:1px solid #edf0f4">${categoryPill(r.category)}<br><span>${esc(r.description.slice(0,85))}${r.description.length>85?"…":""}</span></div>`).join("")||"Sin actividades registradas para este día.";
  renderCalendarPending();
 }
 $("prevMonth").addEventListener("click",()=>{calendarCursor.setMonth(calendarCursor.getMonth()-1);renderCalendar()});
