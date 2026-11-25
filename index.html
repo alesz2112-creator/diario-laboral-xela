@@ -142,6 +142,16 @@ button,.button{font-weight:600;letter-spacing:.05px}
 .month-photo-credit a{color:inherit;text-decoration:underline}
 .month-photo-status{position:absolute;right:12px;bottom:9px;z-index:3;font-size:9px;color:#fff;background:rgba(36,70,107,.55);border-radius:8px;padding:3px 7px}
 
+
+.categoryrow{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 10px;border:1px solid var(--line);border-radius:11px;margin:9px 0;background:#fff}
+.categoryrow-main{display:flex;align-items:center;gap:9px;min-width:180px;font-weight:650}
+.category-color-dot{width:14px;height:14px;border-radius:50%;border:1px solid #0002;display:inline-block;flex:0 0 auto}
+.category-color-tools{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.category-swatch{width:21px;height:21px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #9aa4b2;cursor:pointer;padding:0}
+.category-swatch[aria-pressed="true"]{box-shadow:0 0 0 2px var(--navy);transform:scale(1.08)}
+.category-custom-color{width:29px;height:29px;padding:2px;border:1px solid #ccd3dc;border-radius:8px;background:#fff;cursor:pointer}
+.category-color-caption{font-size:10px;color:var(--muted);width:100%;margin-top:2px}
+
 </style>
 </head>
 <body>
@@ -278,6 +288,18 @@ button,.button{font-weight:600;letter-spacing:.05px}
 </main>
 <script>
 const DEFAULT_CATEGORIES=["Mobiliario y Equipo","Papelería","Cajas de Papelería","Rendición","Traslado de cajas","Varios","Personal"];
+
+const CATEGORY_PALETTE=[
+ "#DCE5ED","#E8DDF2","#F4E2C4","#EADADD","#DDEBDD","#F5E8D8",
+ "#BFD3E6","#D9C7E8","#F2C6CF","#C9DFD4","#E9D8A6","#D6DDE5",
+ "#8FAFCB","#B69ACD","#D58A9B","#8EAF9B","#C98B65","#B5A78C",
+ "#24466B","#496B8C","#963F4B","#527968","#A66B3F","#6E5A86"
+];
+let categoryColors={};
+function categoryColor(name){return categoryColors[name]||"#DCE5ED";}
+function categoryPill(name){const color=categoryColor(name);return `<span class="pill" style="background:${color}22;border:1px solid ${color}99;color:#344054">${esc(name)}</span>`;}
+function defaultCategoryColor(name){const i=Math.max(0,DEFAULT_CATEGORIES.indexOf(name));return CATEGORY_PALETTE[i%CATEGORY_PALETTE.length];}
+
 const DB_NAME="DiarioLaboralDB", DB_VERSION=3;
 let db, categories=[], records=[], editingCategory=null, editingAttachments=[];
 const $=id=>document.getElementById(id);
@@ -292,13 +314,13 @@ function esc(s=""){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt
 function fmtDate(s){if(!s)return "";const [y,m,d]=s.split("-");return `${d}/${m}/${y}`}
 function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1500)}
 function csvCell(v){return '"'+String(v??"").replace(/"/g,'""')+'"'}
-async function refresh(){categories=(await all("categories")).map(x=>x.name).sort((a,b)=>a.localeCompare(b,"es"));records=(await all("records")).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt);renderCategorySelects();renderCategories();renderRecords();renderStats();if(typeof renderCalendar==="function")renderCalendar();if(typeof renderTasks==="function")await renderTasks();if(typeof renderNotes==="function")await renderNotes();}
+async function refresh(){const categoryRows=await all("categories");categoryColors={};categoryRows.forEach(x=>categoryColors[x.name]=x.color||defaultCategoryColor(x.name));categories=categoryRows.map(x=>x.name).sort((a,b)=>a.localeCompare(b,"es"));records=(await all("records")).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt);renderCategorySelects();renderCategories();renderRecords();renderStats();if(typeof renderCalendar==="function")renderCalendar();if(typeof renderTasks==="function")await renderTasks();if(typeof renderNotes==="function")await renderNotes();}
 function renderCategorySelects(){const opts=categories.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("");$("category").innerHTML='<option value="">Selecciona una categoría</option>'+opts;$("filterCategory").innerHTML='<option value="">Todas las categorías</option>'+opts;$("reportCategory").innerHTML='<option value="">Todas las categorías</option>'+opts;
  if($("taskCategory"))$("taskCategory").innerHTML='<option value="">Sin etiqueta</option>'+opts;}
-function renderCategories(){$("categoryList").innerHTML=categories.map(c=>`<div class="categoryrow"><span>${esc(c)}</span><span class="actions" style="margin:0"><button class="small secondary" data-editcat="${esc(c)}">Editar</button><button class="small danger" data-delcat="${esc(c)}">Eliminar</button></span></div>`).join("")||'<div class="empty">No hay categorías.</div>';}
+function renderCategories(){$("categoryList").innerHTML=categories.map(c=>{const current=categoryColor(c);return `<div class="categoryrow"><div class="categoryrow-main"><span class="category-color-dot" style="background:${current}"></span><span>${esc(c)}</span></div><div class="category-color-tools" aria-label="Elegir color para ${esc(c)}">${CATEGORY_PALETTE.map(color=>`<button type="button" class="category-swatch" style="background:${color}" data-catcolor="${esc(c)}" data-color="${color}" aria-label="Elegir color ${color}" aria-pressed="${current.toLowerCase()===color.toLowerCase()}"></button>`).join("")}<label title="Elegir otro color"><input class="category-custom-color" type="color" value="${current}" data-customcat="${esc(c)}" aria-label="Elegir otro color para ${esc(c)}"></label><div class="category-color-caption">Selecciona un tono o elige cualquier otro color</div></div><span class="actions" style="margin:0"><button class="small secondary" data-editcat="${esc(c)}">Editar nombre</button><button class="small danger" data-delcat="${esc(c)}">Eliminar</button></span></div>`;}).join("")||'<div class="empty">No hay categorías.</div>'; }
 function renderStats(){const now=new Date(),prefix=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");$("totalRecords").textContent=records.length;$("monthRecords").textContent=records.filter(r=>r.date.startsWith(prefix)).length;$("categoryCount").textContent=categories.length;}
 function filteredRecords(){const q=$("search").value.trim().toLocaleLowerCase("es"),cat=$("filterCategory").value,month=$("filterMonth").value;return records.filter(r=>(!cat||r.category===cat)&&(!month||r.date.startsWith(month))&&(!q||(r.description+" "+r.notes+" "+r.category).toLocaleLowerCase("es").includes(q)));}
-function renderRecords(){const list=filteredRecords();$("recordsList").innerHTML=list.map(r=>`<article class="record"><div class="recordtop"><div><span class="pill">${esc(r.category)}</span> <small>${fmtDate(r.date)}</small></div><div class="actions no-print" style="margin:0"><button class="small secondary" data-edit="${r.id}">Editar</button><button class="small danger" data-delete="${r.id}">Eliminar</button></div></div><p><b>Actividad:</b> ${esc(r.description)}</p>${r.notes?`<p><b>Observaciones:</b> ${esc(r.notes)}</p>`:""}${r.attachments?.length?`<div class="attachments">${r.attachments.map((f,i)=>`<button class="small secondary" data-file="${r.id}" data-index="${i}">📎 ${esc(f.name)}</button>`).join("")}</div>`:""}</article>`).join("")||'<div class="empty">No hay actividades que coincidan con la búsqueda.</div>';}
+function renderRecords(){const list=filteredRecords();$("recordsList").innerHTML=list.map(r=>`<article class="record"><div class="recordtop"><div>${categoryPill(r.category)} <small>${fmtDate(r.date)}</small></div><div class="actions no-print" style="margin:0"><button class="small secondary" data-edit="${r.id}">Editar</button><button class="small danger" data-delete="${r.id}">Eliminar</button></div></div><p><b>Actividad:</b> ${esc(r.description)}</p>${r.notes?`<p><b>Observaciones:</b> ${esc(r.notes)}</p>`:""}${r.attachments?.length?`<div class="attachments">${r.attachments.map((f,i)=>`<button class="small secondary" data-file="${r.id}" data-index="${i}">📎 ${esc(f.name)}</button>`).join("")}</div>`:""}</article>`).join("")||'<div class="empty">No hay actividades que coincidan con la búsqueda.</div>';}
 function showTab(tab){document.querySelectorAll(".view").forEach(v=>v.classList.toggle("hidden",v.id!==tab));document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));if(tab==="historial")renderRecords();if(tab==="calendario")renderCalendar();}
 document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>showTab(b.dataset.tab)));
 $("date").value=new Date().toISOString().slice(0,10);
@@ -307,8 +329,10 @@ function resetForm(){$("recordForm").reset();$("recordId").value="";$("date").va
 $("cancelEdit").addEventListener("click",resetForm);
 $("recordsList").addEventListener("click",async e=>{const edit=e.target.closest("[data-edit]"),remove=e.target.closest("[data-delete]"),file=e.target.closest("[data-file]");if(edit){const r=records.find(x=>x.id===edit.dataset.edit);$("recordId").value=r.id;$("date").value=r.date;$("category").value=r.category;$("description").value=r.description;$("notes").value=r.notes||"";editingAttachments=r.attachments||[];$("existingFiles").innerHTML=editingAttachments.map((f,i)=>`<span class="filelink">${esc(f.name)} <button type="button" class="small danger" data-removeexisting="${i}">Quitar</button></span>`).join("");$("formTitle").textContent="Editar actividad";$("saveBtn").textContent="Guardar cambios";$("cancelEdit").classList.remove("hidden");showTab("registro");window.scrollTo(0,0);}else if(remove){if(confirm("¿Eliminar esta actividad y sus adjuntos?")){await del("records",remove.dataset.delete);await refresh();}}else if(file){const r=records.find(x=>x.id===file.dataset.file),f=r.attachments[Number(file.dataset.index)];const url=URL.createObjectURL(f.blob),a=document.createElement("a");a.href=url;a.download=f.name;a.target="_blank";a.click();setTimeout(()=>URL.revokeObjectURL(url),5000);}});
 $("existingFiles").addEventListener("click",e=>{const b=e.target.closest("[data-removeexisting]");if(b){editingAttachments.splice(Number(b.dataset.removeexisting),1);$("existingFiles").innerHTML=editingAttachments.map((f,i)=>`<span class="filelink">${esc(f.name)} <button type="button" class="small danger" data-removeexisting="${i}">Quitar</button></span>`).join("");}});
-$("categoryForm").addEventListener("submit",async e=>{e.preventDefault();const name=$("categoryName").value.trim();if(!name)return;if(editingCategory){if(name!==editingCategory&&categories.includes(name)){alert("Ya existe una categoría con ese nombre.");return;}await del("categories",editingCategory);await put("categories",{name});editingCategory=null;}else{if(categories.includes(name)){alert("Esa categoría ya existe.");return;}await put("categories",{name});}$("categoryName").value="";$("categorySave").textContent="Agregar categoría";$("categoryCancel").classList.add("hidden");await refresh();});
-$("categoryList").addEventListener("click",async e=>{const ed=e.target.closest("[data-editcat]"),rm=e.target.closest("[data-delcat]");if(ed){editingCategory=ed.dataset.editcat;$("categoryName").value=editingCategory;$("categorySave").textContent="Guardar cambios";$("categoryCancel").classList.remove("hidden");$("categoryName").focus();}else if(rm){const name=rm.dataset.delcat;if(confirm(`¿Eliminar la categoría "${name}"? Las actividades existentes conservarán su categoría como texto.`)){await del("categories",name);await refresh();}}});
+$("categoryForm").addEventListener("submit",async e=>{e.preventDefault();const name=$("categoryName").value.trim();if(!name)return;if(editingCategory){if(name!==editingCategory&&categories.includes(name)){alert("Ya existe una categoría con ese nombre.");return;}const color=categoryColor(editingCategory);await del("categories",editingCategory);await put("categories",{name,color});editingCategory=null;}else{if(categories.includes(name)){alert("Esa categoría ya existe.");return;}await put("categories",{name,color:CATEGORY_PALETTE[categories.length%CATEGORY_PALETTE.length]});}$("categoryName").value="";$("categorySave").textContent="Agregar categoría";$("categoryCancel").classList.add("hidden");await refresh();});
+async function setCategoryColor(name,color){if(!/^#[0-9a-f]{6}$/i.test(color))return;categoryColors[name]=color;await put("categories",{name,color});renderCategories();renderRecords();if(typeof renderTasks==="function")await renderTasks();if(typeof renderCalendar==="function")renderCalendar();}
+$("categoryList").addEventListener("click",async e=>{const swatch=e.target.closest("[data-catcolor]");if(swatch){await setCategoryColor(swatch.dataset.catcolor,swatch.dataset.color);return;}const ed=e.target.closest("[data-editcat]"),rm=e.target.closest("[data-delcat]");if(ed){editingCategory=ed.dataset.editcat;$("categoryName").value=editingCategory;$("categorySave").textContent="Guardar cambios";$("categoryCancel").classList.remove("hidden");$("categoryName").focus();}else if(rm){const name=rm.dataset.delcat;if(confirm(`¿Eliminar la categoría "${name}"? Las actividades existentes conservarán su categoría como texto.`)){await del("categories",name);await refresh();}}});
+$("categoryList").addEventListener("input",async e=>{const picker=e.target.closest("[data-customcat]");if(picker)await setCategoryColor(picker.dataset.customcat,picker.value);});
 $("categoryCancel").addEventListener("click",()=>{editingCategory=null;$("categoryName").value="";$("categorySave").textContent="Agregar categoría";$("categoryCancel").classList.add("hidden");});
 ["search","filterCategory","filterMonth"].forEach(id=>$(id).addEventListener(id==="search"?"input":"change",renderRecords));
 $("clearFilters").addEventListener("click",()=>{$("search").value="";$("filterCategory").value="";$("filterMonth").value="";renderRecords();});
@@ -341,7 +365,7 @@ async function renderTasks(){
  const ts=(await all("tasks")).sort((a,b)=>(a.done-b.done)||(a.due||"9999").localeCompare(b.due||"9999")||b.createdAt-a.createdAt);
  const pending=ts.filter(t=>!t.done).length;$("taskSummary").textContent=`${pending} pendiente(s) · ${ts.length} total`;
  const mode=$("taskFilter").value;const shown=ts.filter(t=>mode==="all"||(mode==="done"?t.done:!t.done));
- $("taskList").innerHTML=shown.map(t=>`<div class="record"><div class="recordtop"><div style="display:flex;gap:9px;align-items:flex-start"><input type="checkbox" data-taskdone="${t.id}" ${t.done?"checked":""} style="width:auto;margin-top:4px"><div><b style="${t.done?"text-decoration:line-through;color:#667085":""}">${esc(t.title)}</b><div class="meta">${t.due?"Fecha límite: "+fmtDate(t.due):"Sin fecha límite"} ${t.category?" · "+esc(t.category):""}</div></div></div><button class="small danger" data-taskdel="${t.id}">Eliminar</button></div>${t.details?`<p>${esc(t.details)}</p>`:""}</div>`).join("")||'<div class="empty">No hay tareas en esta vista.</div>';
+ $("taskList").innerHTML=shown.map(t=>`<div class="record"><div class="recordtop"><div style="display:flex;gap:9px;align-items:flex-start"><input type="checkbox" data-taskdone="${t.id}" ${t.done?"checked":""} style="width:auto;margin-top:4px"><div><b style="${t.done?"text-decoration:line-through;color:#667085":""}">${esc(t.title)}</b><div class="meta">${t.due?"Fecha límite: "+fmtDate(t.due):"Sin fecha límite"} ${t.category?" · "+categoryPill(t.category):""}</div></div></div><button class="small danger" data-taskdel="${t.id}">Eliminar</button></div>${t.details?`<p>${esc(t.details)}</p>`:""}</div>`).join("")||'<div class="empty">No hay tareas en esta vista.</div>';
 }
 $("taskForm").addEventListener("submit",async e=>{e.preventDefault();await put("tasks",{id:uid(),title:$("taskTitle").value.trim(),due:$("taskDue").value,category:$("taskCategory").value,details:$("taskDetails").value.trim(),done:false,createdAt:Date.now()});$("taskForm").reset();await renderTasks();});
 $("taskFilter").addEventListener("change",renderTasks);
@@ -488,7 +512,7 @@ async function renderCalendarPending(){
    if(t.due<today){dueText="Atrasada · "+fmtDate(t.due);dueClass="overdue";}
    else if(t.due===today){dueText="Vence hoy";dueClass="today";}
   }
-  return `<div class="calendar-task"><input type="checkbox" data-cal-taskdone="${t.id}" aria-label="Marcar ${esc(t.title)} como realizada"><div class="calendar-task-main"><div class="calendar-task-title">${esc(t.title)}</div><div class="calendar-task-meta ${dueClass}">${dueText}${t.category?" · "+esc(t.category):""}</div></div></div>`;
+  return `<div class="calendar-task"><input type="checkbox" data-cal-taskdone="${t.id}" aria-label="Marcar ${esc(t.title)} como realizada"><div class="calendar-task-main"><div class="calendar-task-title">${esc(t.title)}</div><div class="calendar-task-meta ${dueClass}">${dueText}${t.category?" · "+categoryPill(t.category):""}</div></div></div>`;
  }).join("")||'<div class="reminder-empty">¡Muy bien! No tienes tareas pendientes. 🌿</div>';
  if(ts.length>5)$("calendarPendingList").insertAdjacentHTML("beforeend",`<div class="calendar-task-meta">Y ${ts.length-5} tarea(s) más…</div>`);
 }
@@ -570,6 +594,6 @@ $("smartSearchBtn").addEventListener("click",smartSearch);
 $("smartSearch").addEventListener("keydown",e=>{if(e.key==="Enter")smartSearch()});
 $("smartSearchClear").addEventListener("click",()=>{$("smartSearch").value="";$("smartResults").innerHTML=""});
 
-(async()=>{try{db=await openDB();const existing=await all("categories");if(!existing.length)for(const name of DEFAULT_CATEGORIES)await put("categories",{name});await refresh();}catch(e){alert("No se pudo iniciar el almacenamiento local. Abre esta aplicación con Chrome o Edge actualizado.");}})();
+(async()=>{try{db=await openDB();const existing=await all("categories");if(!existing.length){for(const [i,name] of DEFAULT_CATEGORIES.entries())await put("categories",{name,color:CATEGORY_PALETTE[i]});}else{for(const row of existing)if(!row.color)await put("categories",{...row,color:defaultCategoryColor(row.name)});}await refresh();}catch(e){alert("No se pudo iniciar el almacenamiento local. Abre esta aplicación con Chrome o Edge actualizado.");}})();
 </script>
 </body></html>
